@@ -662,7 +662,7 @@ public abstract class AbstractPipelineMavenPluginDao implements PipelineMavenPlu
                 "from MAVEN_ARTIFACT  \n" +
                 "inner join MAVEN_DEPENDENCY on (MAVEN_DEPENDENCY.artifact_id = MAVEN_ARTIFACT.id and MAVEN_DEPENDENCY.ignore_upstream_triggers = false) \n" +
                 "inner join JENKINS_BUILD as downstream_build on MAVEN_DEPENDENCY.build_id = downstream_build.id \n" +
-                "inner join JENKINS_JOB as downstream_job on (downstream_build.number = downstream_job.last_successful_build_number and downstream_build.job_id = downstream_job.id) \n" +
+                "inner join JENKINS_JOB as downstream_job on (downstream_build.job_id = downstream_job.id) \n" +
                 "where MAVEN_ARTIFACT.group_id = ? and MAVEN_ARTIFACT.artifact_id = ? and MAVEN_ARTIFACT.version = ? \n" +
                 "and (MAVEN_ARTIFACT.type = ? or MAVEN_ARTIFACT.classifier IS NULL or MAVEN_ARTIFACT.classifier = ?) \n" +
                 "and downstream_job.jenkins_master_id = ?";
@@ -702,7 +702,7 @@ public abstract class AbstractPipelineMavenPluginDao implements PipelineMavenPlu
                 "inner join MAVEN_ARTIFACT on GENERATED_MAVEN_ARTIFACT.artifact_id = MAVEN_ARTIFACT.id \n" +
                 "inner join MAVEN_DEPENDENCY on (MAVEN_DEPENDENCY.artifact_id = MAVEN_ARTIFACT.id and MAVEN_DEPENDENCY.ignore_upstream_triggers = false) \n" +
                 "inner join JENKINS_BUILD as downstream_build on MAVEN_DEPENDENCY.build_id = downstream_build.id \n" +
-                "inner join JENKINS_JOB as downstream_job on (downstream_build.number = downstream_job.last_successful_build_number and downstream_build.job_id = downstream_job.id) \n" +
+                "inner join JENKINS_JOB as downstream_job on (downstream_build.job_id = downstream_job.id) \n" +
                 "where upstream_job.full_name = ? and upstream_job.jenkins_master_id = ? and upstream_build.number = ? and downstream_job.jenkins_master_id = ?";
 
         List<String> downstreamJobsFullNames = new ArrayList<>();
@@ -749,7 +749,7 @@ public abstract class AbstractPipelineMavenPluginDao implements PipelineMavenPlu
                 "   )\n" +
                 "inner join MAVEN_DEPENDENCY on (MAVEN_DEPENDENCY.artifact_id = dependency_artefact.id and MAVEN_DEPENDENCY.ignore_upstream_triggers = false) \n" +
                 "inner join JENKINS_BUILD as downstream_build on MAVEN_DEPENDENCY.build_id = downstream_build.id \n" +
-                "inner join JENKINS_JOB as downstream_job on (downstream_build.number = downstream_job.last_successful_build_number and downstream_build.job_id = downstream_job.id) \n" +
+                "inner join JENKINS_JOB as downstream_job on (downstream_build.job_id = downstream_job.id) \n" +
                 "where upstream_job.full_name = ? and upstream_job.jenkins_master_id = ? and upstream_build.number = ? and downstream_job.jenkins_master_id = ?";
 
         LOGGER.log(Level.FINER, "sql: {0}, jobFullName:{1}, buildNumber: {2}", new Object[]{sql, jobFullName, buildNumber});
@@ -796,7 +796,7 @@ public abstract class AbstractPipelineMavenPluginDao implements PipelineMavenPlu
                 "inner join MAVEN_ARTIFACT on GENERATED_MAVEN_ARTIFACT.artifact_id = MAVEN_ARTIFACT.id \n" +
                 "inner join MAVEN_PARENT_PROJECT on (MAVEN_PARENT_PROJECT.artifact_id = MAVEN_ARTIFACT.id and MAVEN_PARENT_PROJECT.ignore_upstream_triggers = false) \n" +
                 "inner join JENKINS_BUILD as downstream_build on MAVEN_PARENT_PROJECT.build_id = downstream_build.id \n" +
-                "inner join JENKINS_JOB as downstream_job on (downstream_build.number = downstream_job.last_successful_build_number and downstream_build.job_id = downstream_job.id) \n" +
+                "inner join JENKINS_JOB as downstream_job on (downstream_build.job_id = downstream_job.id) \n" +
                 "where upstream_job.full_name = ? and upstream_job.jenkins_master_id = ? and upstream_build.number = ? and downstream_job.jenkins_master_id = ?";
 
         List<String> downstreamJobsFullNames = new ArrayList<>();
