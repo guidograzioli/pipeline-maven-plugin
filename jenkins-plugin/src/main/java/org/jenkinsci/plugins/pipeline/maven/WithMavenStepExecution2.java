@@ -74,16 +74,18 @@ import org.jenkinsci.plugins.configfiles.maven.security.MavenServerIdRequirement
 import org.jenkinsci.plugins.configfiles.maven.security.ServerCredentialMapping;
 import org.jenkinsci.plugins.pipeline.maven.console.MaskPasswordsConsoleLogFilter;
 import org.jenkinsci.plugins.pipeline.maven.console.MavenColorizerConsoleLogFilter;
-import org.jenkinsci.plugins.pipeline.maven.fix.jenkins49337.GeneralNonBlockingStepExecution;
 import org.jenkinsci.plugins.pipeline.maven.util.FileUtils;
 import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
 import org.jenkinsci.plugins.tokenmacro.TokenMacro;
-import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
+import org.jenkinsci.plugins.workflow.steps.GeneralNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.springframework.util.ClassUtils;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -94,28 +96,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-/**
- * TODO when there is enough adoption of workflow-step-api with https://github.com/jenkinsci/workflow-step-api-plugin/pull/38
- * Replace org.jenkinsci.plugins.pipeline.maven.fix.jenkins49337.GeneralNonBlockingStepExecution by org.jenkinsci.plugins.workflow.steps.GeneralNonBlockingStepExecution;
- */
 @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED", justification = "Contextual fields used only in start(); no onResume needed")
 class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
 
@@ -144,7 +134,6 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
 
     private transient Computer computer;
     private transient FilePath tempBinDir;
-    private transient BodyExecution body;
 
     /**
      * Indicates if running on docker with <code>docker.image()</code> or <code>container()</code>
@@ -188,8 +177,9 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
         }
 
         listener.getLogger().println("[withMaven] Options: " + step.getOptions());
-        ExtensionList<MavenPublisher> availableMavenPublishers = Jenkins.getInstance().getExtensionList(MavenPublisher.class);
-        listener.getLogger().println("[withMaven] Available options: " + availableMavenPublishers.stream().map(publisher -> publisher.toString()).collect(Collectors.joining(",")));
+        ExtensionList<MavenPublisher> availableMavenPublishers = Jenkins.get().getExtensionList(MavenPublisher.class);
+        listener.getLogger().println("[withMaven] Available options: " + availableMavenPublishers.stream().map(
+                MavenPublisher::toString).collect(Collectors.joining(",")));
 
         getComputer();
 
@@ -197,7 +187,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
 
         if (withContainer) {
             listener.getLogger().print("[withMaven] IMPORTANT \"withMaven(){...}\" step running within a Docker container. See " );
-            listener.hyperlink("https://github.com/jenkinsci/pipeline-maven-plugin/blob/master/jenkins-plugin/src/resources/faq.md#how-to-use-the-pipeline-maven-plugin-with-docker-since-version-303", "Pipeline Maven Plugin FAQ");
+            listener.hyperlink("https://github.com/jenkinsci/pipeline-maven-plugin/FAQ.adoc", "Pipeline Maven Plugin FAQ");
             listener.getLogger().println(" in case of problem.");
         }
 
@@ -224,7 +214,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
 
         LOGGER.log(Level.FINEST, "envOverride: {0}", envOverride); // JENKINS-40484
 
-        body = getContext().newBodyInvoker().withContexts(envEx, newFilter).withCallback(new WithMavenStepExecutionCallBack(tempBinDir, step.getOptions(), step.getPublisherStrategy())).start();
+        getContext().newBodyInvoker().withContexts(envEx, newFilter).withCallback(new WithMavenStepExecutionCallBack(tempBinDir, step.getOptions(), step.getPublisherStrategy())).start();
 
         return false;
     }
@@ -289,7 +279,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
 
         console.println("[withMaven] using JDK installation " + jdkInstallationName);
 
-        JDK jdk = Jenkins.getInstance().getJDK(jdkInstallationName);
+        JDK jdk = Jenkins.get().getJDK(jdkInstallationName);
         if (jdk == null) {
             throw new AbortException("Could not find the JDK installation: " + jdkInstallationName + ". Make sure it is configured on the Global Tool Configuration page");
         }
@@ -354,17 +344,17 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
         if (StringUtils.isNotEmpty(settingsFilePath)) {
             // JENKINS-57324 escape '%' as '%%'. See https://en.wikibooks.org/wiki/Windows_Batch_Scripting#Quoting_and_escaping
         	if (!isUnix) settingsFilePath=settingsFilePath.replace("%", "%%");
-            mavenConfig.append("--settings \"" + settingsFilePath + "\" ");
+            mavenConfig.append("--settings \"").append(settingsFilePath).append("\" ");
         }
         if (StringUtils.isNotEmpty(globalSettingsFilePath)) {
             // JENKINS-57324 escape '%' as '%%'. See https://en.wikibooks.org/wiki/Windows_Batch_Scripting#Quoting_and_escaping
         	if (!isUnix) globalSettingsFilePath=globalSettingsFilePath.replace("%", "%%");
-            mavenConfig.append("--global-settings \"" + globalSettingsFilePath + "\" ");
+            mavenConfig.append("--global-settings \"").append(globalSettingsFilePath).append("\" ");
         }
         if (StringUtils.isNotEmpty(mavenLocalRepo)) {
             // JENKINS-57324 escape '%' as '%%'. See https://en.wikibooks.org/wiki/Windows_Batch_Scripting#Quoting_and_escaping
         	if (!isUnix) mavenLocalRepo=mavenLocalRepo.replace("%", "%%");
-            mavenConfig.append("\"-Dmaven.repo.local=" + mavenLocalRepo + "\" ");
+            mavenConfig.append("\"-Dmaven.repo.local=").append(mavenLocalRepo).append("\" ");
         }
 
         envOverride.put("MAVEN_CONFIG", mavenConfig.toString());
@@ -475,10 +465,10 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
             if (mavenHome == null) {
                 mavenHome = readFromProcess("printenv", M2_HOME);
                 if (StringUtils.isNotEmpty(mavenHome)) {
-                    consoleMessage.append(" with the environment variable M2_HOME=" + mavenHome);
+                    consoleMessage.append(" with the environment variable M2_HOME=").append(mavenHome);
                 }
             } else {
-                consoleMessage.append(" with the environment variable MAVEN_HOME=" + mavenHome);
+                consoleMessage.append(" with the environment variable MAVEN_HOME=").append(mavenHome);
             }
 
             if (mavenHome == null) {
@@ -497,10 +487,10 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
             if (mavenHome == null) {
                 mavenHome = agentEnv.get(M2_HOME);
                 if (StringUtils.isNotEmpty(mavenHome)) {
-                    consoleMessage.append(" with the environment variable M2_HOME=" + mavenHome);
+                    consoleMessage.append(" with the environment variable M2_HOME=").append(mavenHome);
                 }
             } else {
-                consoleMessage.append(" with the environment variable MAVEN_HOME=" + mavenHome);
+                consoleMessage.append(" with the environment variable MAVEN_HOME=").append(mavenHome);
             }
             if (mavenHome == null) {
                 LOGGER.log(Level.FINE, "NO maven installation discovered on build agent through MAVEN_HOME and M2_HOME environment variables");
@@ -539,7 +529,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
                             "and not found on the build agent");
                 }
             } else {
-                consoleMessage.append(" with executable " + mvnExecPath);
+                consoleMessage.append(" with executable ").append(mvnExecPath);
             }
         }
 
@@ -569,9 +559,8 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
         mavenInstallation = mavenInstallation.forNode(node, listener).forEnvironment(env);
         mavenInstallation.buildEnvVars(envOverride);
         console.println("[withMaven] using Maven installation '" + mavenInstallation.getName() + "'");
-        String mvnExecPath = mavenInstallation.getExecutable(launcher);
 
-        return mvnExecPath;
+        return mavenInstallation.getExecutable(launcher);
     }
 
     /**
@@ -617,7 +606,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
             String lineSep = "\n";
             script.append("#!/bin/sh -e").append(lineSep);
             script.append("echo ----- withMaven Wrapper script -----").append(lineSep);
-            script.append("\"" + mvnExec.getRemote() + "\" " + mavenConfig + " \"$@\"").append(lineSep);
+            script.append("\"").append(mvnExec.getRemote()).append("\" ").append(mavenConfig).append(" \"$@\"").append(lineSep);
 
         } else { // Windows
             String lineSep = "\r\n";
@@ -625,7 +614,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
             script.append("echo ----- withMaven Wrapper script -----").append(lineSep);
             // JENKINS-57324 escape '%' as '%%'. See https://en.wikibooks.org/wiki/Windows_Batch_Scripting#Quoting_and_escaping
             mavenConfig = mavenConfig.replace("%", "%%");
-            script.append("\"" + mvnExec.getRemote() + "\" " + mavenConfig + " %*").append(lineSep);
+            script.append("\"").append(mvnExec.getRemote()).append("\" ").append(mavenConfig).append(" %*").append(lineSep);
         }
 
         LOGGER.log(Level.FINER, "Generated Maven wrapper script: \n{0}", script);
@@ -793,7 +782,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
 
         // Iterate until we find an override or until we reach the top. We need it to be an item to be able to do
         // getParent, AbstractFolder which has the properties is also an Item
-        for (ItemGroup<?> group = job.getParent(); group != null && group instanceof Item && !(group instanceof Jenkins); group = ((Item) group).getParent()) {
+        for (ItemGroup<?> group = job.getParent(); group instanceof Item && !(group instanceof Jenkins); group = ((Item) group).getParent()) {
             if (group instanceof AbstractFolder) {
                 MavenConfigFolderOverrideProperty mavenConfigProperty = ((AbstractFolder<?>) group).getProperties().get(MavenConfigFolderOverrideProperty.class);
                 if (mavenConfigProperty != null && mavenConfigProperty.isOverride()) {
@@ -1129,14 +1118,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
      * @return maven installations on this instance
      */
     private static MavenInstallation[] getMavenInstallations() {
-        return Jenkins.getInstance().getDescriptorByType(Maven.DescriptorImpl.class).getInstallations();
-    }
-
-    @Override
-    public void stop(Throwable cause) throws Exception {
-        if (body != null) {
-            body.cancel(cause);
-        }
+        return Jenkins.get().getDescriptorByType(Maven.DescriptorImpl.class).getInstallations();
     }
 
     /**
@@ -1152,7 +1134,7 @@ class WithMavenStepExecution2 extends GeneralNonBlockingStepExecution {
         }
 
         String node = null;
-        Jenkins j = Jenkins.getInstance();
+        Jenkins j = Jenkins.get();
 
         for (Computer c : j.getComputers()) {
             if (c.getChannel() == launcher.getChannel()) {

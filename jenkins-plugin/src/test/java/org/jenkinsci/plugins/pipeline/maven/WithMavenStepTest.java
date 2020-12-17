@@ -23,19 +23,16 @@
  */
 package org.jenkinsci.plugins.pipeline.maven;
 
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.model.Fingerprint;
 import hudson.model.FingerprintMap;
-import hudson.model.Node;
 import hudson.model.Result;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.DumbSlave;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
-import hudson.tasks.Maven;
-import jenkins.mvn.DefaultGlobalSettingsProvider;
-import jenkins.mvn.DefaultSettingsProvider;
-import jenkins.mvn.GlobalMavenConfig;
-import jenkins.plugins.git.GitSampleRepoRule;
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.pipeline.maven.docker.JavaGitContainer;
@@ -43,18 +40,16 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
-import org.jvnet.hudson.test.ExtendedToolInstallations;
 import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class WithMavenStepTest extends AbstractIntegrationTest {
 
@@ -67,9 +62,12 @@ public class WithMavenStepTest extends AbstractIntegrationTest {
 
         JavaGitContainer slaveContainer = slaveRule.get();
 
-        DumbSlave agent = new DumbSlave("remote", "", "/home/test/slave", "1", Node.Mode.NORMAL, "",
-                new SSHLauncher(slaveContainer.ipBound(22), slaveContainer.port(22), "test", "test", "", ""),
-                RetentionStrategy.INSTANCE, Collections.<NodeProperty<?>>emptyList());
+        SystemCredentialsProvider.getInstance().getDomainCredentialsMap()
+                .put(Domain.global(), Collections.singletonList(new UsernamePasswordCredentialsImpl(
+                        CredentialsScope.GLOBAL, "test", null, "test", "test")));
+        DumbSlave agent = new DumbSlave("remote","/home/test/slave",new SSHLauncher(slaveContainer.ipBound(22), slaveContainer.port(22), "test"));
+        agent.setNumExecutors(1);
+        agent.setRetentionStrategy(RetentionStrategy.INSTANCE);
         jenkinsRule.jenkins.addNode(agent);
     }
 
@@ -78,7 +76,7 @@ public class WithMavenStepTest extends AbstractIntegrationTest {
     public void maven_build_on_remote_agent_with_settings_file_on_master_fails() throws Exception {
         File onMaster = new File(jenkinsRule.jenkins.getRootDir(), "onmaster");
         String secret = "secret content on master";
-        FileUtils.writeStringToFile(onMaster, secret);
+        FileUtils.writeStringToFile(onMaster, secret, StandardCharsets.UTF_8);
         String pipelineScript = "node('remote') {withMaven(mavenSettingsFilePath: '" + onMaster + "') {echo readFile(MVN_SETTINGS)}}";
 
         WorkflowJob p = jenkinsRule.createProject(WorkflowJob.class, "p");
@@ -104,6 +102,6 @@ public class WithMavenStepTest extends AbstractIntegrationTest {
         jenkinsRule.assertBuildStatus(Result.SUCCESS, firstPipeline.scheduleBuild2(0));
         FingerprintMap fingerprintMap = jenkinsRule.jenkins.getFingerprintMap();
         Fingerprint fingerprint = fingerprintMap.get(commonsLang3version35Md5);
-        Assert.assertThat( fingerprint, Matchers.nullValue() );
+        assertThat( fingerprint, Matchers.nullValue() );
     }
 }
