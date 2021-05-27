@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.pipeline.maven.service;
 
 import com.cloudbees.hudson.plugins.folder.computed.ComputedFolder;
 import hudson.console.ModelHyperlinkNote;
+import hudson.model.Action;
 import hudson.model.Cause;
 import hudson.model.CauseAction;
 import hudson.model.Item;
@@ -268,7 +269,7 @@ public class PipelineTriggerService {
                     Run<?, ?> upstreamBuild = upstreamCause.getUpstreamRun();
                     if (upstreamBuild == null) {
                         // Can be Authorization, build deleted on the file system...
-                    } else if (Objects.equals(upstreamBuild.getParent().getFullName(), initialBuild.getParent().getFullName())) {
+                    } else if (!cause.getClass().getName().equals("com.sonyericsson.rebuild.RebuildCause") && Objects.equals(upstreamBuild.getParent().getFullName(), initialBuild.getParent().getFullName())) {
                         throw new IllegalStateException("Infinite loop of job triggers ");
                     } else {
                         builds.add(upstreamBuild);
