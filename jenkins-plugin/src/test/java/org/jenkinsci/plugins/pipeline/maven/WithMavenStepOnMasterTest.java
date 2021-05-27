@@ -50,7 +50,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 
@@ -184,15 +183,6 @@ public class WithMavenStepOnMasterTest extends AbstractIntegrationTest {
         assertThat(tasksResultAction.getProjectActions().size(), is(1));
     }
 
-    /**
-     *
-     * <pre>
-     * ERROR: [withMaven] jacocoPublisher - Silently ignore exception archiving JaCoCo results:
-     * java.io.IOException: While reading class directory: /var/folders/lq/50t8n2nx7l316pwm8gc_2rt40000gn/T/j h8464991534006021463/jobs/jar-with-jacoco/builds/1/jacoco/classes
-     * </pre>
-     * @throws Exception
-     */
-    @Ignore("IOException: While reading class directory: .../jacoco/classes")
     @Test
     public void maven_build_jar_with_jacoco_succeeds() throws Exception {
         loadMavenJarWithJacocoInGitRepo(this.gitRepoRule);
@@ -217,7 +207,7 @@ public class WithMavenStepOnMasterTest extends AbstractIntegrationTest {
         List<TestResultAction> testResultActions = build.getActions(TestResultAction.class);
         assertThat(testResultActions.size(), is(1));
         TestResultAction testResultAction = testResultActions.get(0);
-        assertThat(testResultAction.getTotalCount(), is(1));
+        assertThat(testResultAction.getTotalCount(), is(2));
         assertThat(testResultAction.getFailCount(), is(0));
 
         List<JacocoBuildAction> jacocoBuildActions = build.getActions(JacocoBuildAction.class);
@@ -684,7 +674,7 @@ public class WithMavenStepOnMasterTest extends AbstractIntegrationTest {
             pipeline.setDefinition(new CpsFlowDefinition(pipelineScript, true));
             WorkflowRun build = jenkinsRule.assertBuildStatus(Result.SUCCESS, pipeline.scheduleBuild2(0));
             jenkinsRule.assertLogContains(
-                "[withMaven] using overriden Maven global settings by folder 'folder'. Config File Provider maven global settings file 'maven-global-config-test-folder'",
+                "[withMaven] using overridden Maven global settings by folder 'folder'. Config File Provider maven global settings file 'maven-global-config-test-folder'",
                 build);
             jenkinsRule.assertLogContains("<id>id-global-settings-test-from-config-file-provider-on-a-folder</id>", build);
         } finally {
@@ -921,7 +911,7 @@ public class WithMavenStepOnMasterTest extends AbstractIntegrationTest {
             WorkflowJob pipeline = folder.createProject(WorkflowJob.class, "build-on-master-with-maven-settings-defined-in-jenkins-global-config-with-config-file-provider");
             pipeline.setDefinition(new CpsFlowDefinition(pipelineScript, true));
             WorkflowRun build = jenkinsRule.assertBuildStatus(Result.SUCCESS, pipeline.scheduleBuild2(0));
-            jenkinsRule.assertLogContains("[withMaven] using overriden Maven settings by folder 'folder'. Config File Provider maven settings file 'maven-config-test-folder'",
+            jenkinsRule.assertLogContains("[withMaven] using overridden Maven settings by folder 'folder'. Config File Provider maven settings file 'maven-config-test-folder'",
                 build);
             jenkinsRule.assertLogContains("<id>id-settings-test-through-config-file-provider-on-a-folder</id>", build);
         } finally {
